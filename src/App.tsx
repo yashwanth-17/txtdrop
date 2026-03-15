@@ -113,51 +113,21 @@ export default function App() {
     return new File([blob], name, { type: 'application/octet-stream' })
   }, [text, fileName, format])
 
-  const handleDownload = useCallback(() => {
+  const handleExport = useCallback(() => {
     if (!text.trim()) return
     const file = getFile()
     const url = URL.createObjectURL(file)
     const a = document.createElement('a')
     a.href = url
     a.download = file.name
+    document.body.appendChild(a)
     a.click()
-    URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
     setStatus('success')
-    setStatusMsg('Downloaded!')
-    setTimeout(() => setStatus('idle'), 2000)
+    setStatusMsg('Done! Check your Downloads or Files app.')
+    setTimeout(() => setStatus('idle'), 3000)
   }, [text, getFile])
-
-  const handleShare = useCallback(async () => {
-    if (!text.trim()) return
-
-    const file = getFile()
-
-    if (
-      typeof navigator !== 'undefined' &&
-      navigator.canShare &&
-      navigator.canShare({ files: [file] }) &&
-      navigator.share
-    ) {
-      try {
-        await navigator.share({
-          files: [file],
-          title: file.name,
-        })
-        setStatus('success')
-        setStatusMsg('Shared!')
-        setTimeout(() => setStatus('idle'), 2000)
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name !== 'AbortError') {
-          setStatus('error')
-          setStatusMsg('Share failed. Try Download instead.')
-          setTimeout(() => setStatus('idle'), 3000)
-        }
-      }
-      return
-    }
-
-    handleDownload()
-  }, [text, getFile, handleDownload])
 
   const handleClear = () => {
     setText('')
@@ -231,20 +201,11 @@ export default function App() {
         <div className="actions">
           <button
             className={`btn btn-primary ${!text.trim() ? 'btn-disabled' : ''}`}
-            onClick={handleShare}
-            disabled={!text.trim()}
-          >
-            <span className="btn-icon">↑</span>
-            Share as {formatConfig[format].label}
-          </button>
-
-          <button
-            className={`btn btn-secondary ${!text.trim() ? 'btn-disabled' : ''}`}
-            onClick={handleDownload}
+            onClick={handleExport}
             disabled={!text.trim()}
           >
             <span className="btn-icon">↓</span>
-            Download {formatConfig[format].label}
+            Export as {formatConfig[format].label}
           </button>
         </div>
 
