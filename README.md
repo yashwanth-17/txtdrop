@@ -1,6 +1,6 @@
 # TxtDrop
 
-Convert any large text to a `.txt` file and share/save it instantly from your iPhone.
+Convert pasted text into `.txt`, `.md`, `.json`, `.csv`, `.html`, `.xml`, `.yaml`, or `.log` files and export it instantly on mobile or desktop.
 
 ## Setup (one time)
 
@@ -55,12 +55,12 @@ It now lives on your home screen like a native app.
 
 ## How it works
 
-- Paste any text (no length limit)
-- Name your file
-- Tap **Share as .txt** → iOS share sheet opens with the file
-  - Save to Files app
-  - AirDrop it
-  - Send to any AI app as attachment
-- Or tap **Download .txt** as fallback
+- Paste any text
+- Name your file and choose an export format
+- Tap **Share as ...** on supported mobile browsers
+- If file sharing is not supported, TxtDrop falls back to **Download ...**
+- The **Download** button is always visible, so desktop browsers still have a clear file export path
+
+TxtDrop creates exports as binary file attachments to improve file handling across iOS Safari, Android Chrome, and other browsers/devices.
 
 Your text never leaves your device. The app is just static files hosted on Vercel.
