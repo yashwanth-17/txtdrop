@@ -108,19 +108,36 @@ export default function App() {
 
   const getFile = useCallback(() => {
     const content = getExportContent(text, format)
-    const { mimeType } = formatConfig[format]
-    const blob = new Blob([content], { type: mimeType })
+    const blob = new Blob([content], { type: 'application/octet-stream' })
     const name = `${stripKnownExtension(fileName.trim() || 'untitled')}.${format}`
-    return new File([blob], name, { type: mimeType })
+    return new File([blob], name, { type: 'application/octet-stream' })
   }, [text, fileName, format])
+
+  const handleDownload = useCallback(() => {
+    if (!text.trim()) return
+    const file = getFile()
+    const url = URL.createObjectURL(file)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = file.name
+    a.click()
+    URL.revokeObjectURL(url)
+    setStatus('success')
+    setStatusMsg('Downloaded!')
+    setTimeout(() => setStatus('idle'), 2000)
+  }, [text, getFile])
 
   const handleShare = useCallback(async () => {
     if (!text.trim()) return
 
     const file = getFile()
 
-    // Try native share (iOS Safari supports file sharing)
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.canShare &&
+      navigator.canShare({ files: [file] }) &&
+      navigator.share
+    ) {
       try {
         await navigator.share({
           files: [file],
@@ -139,30 +156,13 @@ export default function App() {
       return
     }
 
-    // Fallback: download
     handleDownload()
-  }, [text, getFile])
-
-  const handleDownload = useCallback(() => {
-    if (!text.trim()) return
-    const file = getFile()
-    const url = URL.createObjectURL(file)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = file.name
-    a.click()
-    URL.revokeObjectURL(url)
-    setStatus('success')
-    setStatusMsg('Downloaded!')
-    setTimeout(() => setStatus('idle'), 2000)
-  }, [text, getFile])
+  }, [text, getFile, handleDownload])
 
   const handleClear = () => {
     setText('')
     setStatus('idle')
   }
-
-  const canShare = typeof navigator !== 'undefined' && !!navigator.share
 
   return (
     <div className="app">
@@ -229,19 +229,17 @@ export default function App() {
         </div>
 
         <div className="actions">
-          {canShare ? (
-            <button
-              className={`btn btn-primary ${!text.trim() ? 'btn-disabled' : ''}`}
-              onClick={handleShare}
-              disabled={!text.trim()}
-            >
-              <span className="btn-icon">↑</span>
-              Share as {formatConfig[format].label}
-            </button>
-          ) : null}
+          <button
+            className={`btn btn-primary ${!text.trim() ? 'btn-disabled' : ''}`}
+            onClick={handleShare}
+            disabled={!text.trim()}
+          >
+            <span className="btn-icon">↑</span>
+            Share as {formatConfig[format].label}
+          </button>
 
           <button
-            className={`btn ${canShare ? 'btn-secondary' : 'btn-primary'} ${!text.trim() ? 'btn-disabled' : ''}`}
+            className={`btn btn-secondary ${!text.trim() ? 'btn-disabled' : ''}`}
             onClick={handleDownload}
             disabled={!text.trim()}
           >
