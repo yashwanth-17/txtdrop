@@ -1,10 +1,105 @@
 import { useState, useCallback } from 'react'
 
 type Status = 'idle' | 'success' | 'error' | 'unsupported'
+type ExportFormat = 'txt' | 'md' | 'json' | 'csv' | 'html' | 'xml' | 'yaml' | 'log'
+
+const formatConfig: Record<ExportFormat, { label: string; mimeType: string }> = {
+  txt: { label: '.txt', mimeType: 'text/plain' },
+  md: { label: '.md', mimeType: 'text/markdown' },
+  json: { label: '.json', mimeType: 'application/json' },
+  csv: { label: '.csv', mimeType: 'text/csv' },
+  html: { label: '.html', mimeType: 'text/html' },
+  xml: { label: '.xml', mimeType: 'application/xml' },
+  yaml: { label: '.yaml', mimeType: 'application/x-yaml' },
+  log: { label: '.log', mimeType: 'text/plain' },
+}
+
+function stripKnownExtension(name: string) {
+  return name.replace(/\.(txt|md|json|csv|html|xml|yaml|log)$/i, '')
+}
+
+function toCsvValue(value: string) {
+  return `"${value.replace(/"/g, '""')}"`
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function escapeXml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+function toYamlBlock(value: string) {
+  return value
+    .split('\n')
+    .map(line => `  ${line}`)
+    .join('\n')
+}
+
+function getTimestamp() {
+  return new Date().toISOString()
+}
+
+function getExportContent(text: string, format: ExportFormat) {
+  switch (format) {
+    case 'md':
+      return `# Exported from TxtDrop\n\n${text}`
+    case 'json':
+      return JSON.stringify(
+        {
+          content: text,
+          exportedAt: getTimestamp(),
+        },
+        null,
+        2,
+      )
+    case 'csv':
+      return `content\n${toCsvValue(text)}`
+    case 'html':
+      return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TxtDrop Export</title>
+  </head>
+  <body>
+    <pre>${escapeHtml(text)}</pre>
+  </body>
+</html>`
+    case 'xml':
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<txtdrop>
+  <content>${escapeXml(text)}</content>
+  <exportedAt>${getTimestamp()}</exportedAt>
+</txtdrop>`
+    case 'yaml':
+      return `content: |
+${toYamlBlock(text)}
+exportedAt: ${getTimestamp()}`
+    case 'log':
+      return `[${getTimestamp()}] TxtDrop export\n${text}`
+    case 'txt':
+    default:
+      return text
+  }
+}
 
 export default function App() {
   const [text, setText] = useState('')
-  const [fileName, setFileName] = useState('my-text')
+  const [fileName, setFileName] = useState('untitled')
+  const [format, setFormat] = useState<ExportFormat>('txt')
   const [status, setStatus] = useState<Status>('idle')
   const [statusMsg, setStatusMsg] = useState('')
 
@@ -12,10 +107,12 @@ export default function App() {
   const charCount = text.length
 
   const getFile = useCallback(() => {
-    const blob = new Blob([text], { type: 'text/plain' })
-    const name = (fileName.trim() || 'my-text').replace(/\.txt$/i, '') + '.txt'
-    return new File([blob], name, { type: 'text/plain' })
-  }, [text, fileName])
+    const content = getExportContent(text, format)
+    const { mimeType } = formatConfig[format]
+    const blob = new Blob([content], { type: mimeType })
+    const name = `${stripKnownExtension(fileName.trim() || 'untitled')}.${format}`
+    return new File([blob], name, { type: mimeType })
+  }, [text, fileName, format])
 
   const handleShare = useCallback(async () => {
     if (!text.trim()) return
@@ -75,7 +172,7 @@ export default function App() {
           <span className="logo-text">TxtDrop</span>
           <span className="logo-bracket">]</span>
         </div>
-        <p className="tagline">paste anything → get a .txt file</p>
+        <p className="tagline">paste anything → export as txt, md, json, csv, html, xml, yaml, or log</p>
       </header>
 
       <main className="main">
@@ -88,10 +185,23 @@ export default function App() {
               type="text"
               value={fileName}
               onChange={e => setFileName(e.target.value)}
-              placeholder="my-text"
+              placeholder="untitled"
               spellCheck={false}
             />
-            <span className="filename-ext">.txt</span>
+            <div className="filename-ext-wrap">
+              <select
+                aria-label="Export format"
+                className="filename-ext-select"
+                value={format}
+                onChange={e => setFormat(e.target.value as ExportFormat)}
+              >
+                {Object.entries(formatConfig).map(([value, config]) => (
+                  <option key={value} value={value}>
+                    {config.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -126,7 +236,7 @@ export default function App() {
               disabled={!text.trim()}
             >
               <span className="btn-icon">↑</span>
-              Share as .txt
+              Share as {formatConfig[format].label}
             </button>
           ) : null}
 
@@ -136,7 +246,7 @@ export default function App() {
             disabled={!text.trim()}
           >
             <span className="btn-icon">↓</span>
-            Download .txt
+            Download {formatConfig[format].label}
           </button>
         </div>
 
